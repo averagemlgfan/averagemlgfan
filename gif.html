@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscador de GIFs</title>
+    <style>
+        body { font-family: Arial; max-width: 600px; margin: 0 auto; padding: 10px; }
+        .search-box { margin-bottom: 15px; text-align: center; }
+        input { width: 60%; padding: 5px; }
+        button { padding: 5px 10px; }
+        .gif-container { display: flex; flex-wrap: wrap; gap: 5px; }
+        .gif-item { width: 48%; border: 1px solid #ddd; }
+        .gif-item img { width: 100%; }
+    </style>
+</head>
+<body>
+    <h2>Buscador de GIFs</h2>
+    
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Buscar..." value="gatos">
+        <button onclick="searchGifs()">Buscar</button>
+    </div>
+    
+    <div id="gifResults">
+        <p>Escribe algo y haz clic en Buscar</p>
+    </div>
+
+    <script>
+        // Nueva API Key funcional (puedes obtener tu propia key en tenor.com)
+        var API_KEY = 'LIVDSRZULELA'; // Key pública de Tenor para desarrolladores
+        
+        function searchGifs() {
+            var query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('Por favor escribe algo para buscar');
+                return;
+            }
+            
+            var resultsContainer = document.getElementById('gifResults');
+            resultsContainer.innerHTML = '<p>Buscando GIFs...</p>';
+            
+            var xhr = new XMLHttpRequest();
+            var url = 'https://g.tenor.com/v1/search?q=' + encodeURIComponent(query) + 
+                     '&key=' + API_KEY + 
+                     '&limit=8' + 
+                     '&media_filter=basic';
+            
+            xhr.open('GET', url);
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        showResults(response);
+                    } catch (e) {
+                        resultsContainer.innerHTML = '<p>Error al leer los resultados</p>';
+                    }
+                } else {
+                    resultsContainer.innerHTML = '<p>Error en la búsqueda (Código: ' + xhr.status + ')</p>';
+                }
+            };
+            
+            xhr.onerror = function() {
+                resultsContainer.innerHTML = '<p>Error de conexión</p>';
+            };
+            
+            xhr.send();
+        }
+        
+        function showResults(response) {
+            var resultsContainer = document.getElementById('gifResults');
+            
+            if (!response || !response.results || response.results.length === 0) {
+                resultsContainer.innerHTML = '<p>No se encontraron GIFs</p>';
+                return;
+            }
+            
+            var html = '<div class="gif-container">';
+            
+            response.results.forEach(function(gif) {
+                var gifUrl = gif.media[0].gif.url;
+                var previewUrl = gif.media[0].tinygif.url;
+                
+                html += '<div class="gif-item">';
+                html += '<a href="' + gifUrl + '" target="_blank">';
+                html += '<img src="' + previewUrl + '" alt="GIF">';
+                html += '</a>';
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            resultsContainer.innerHTML = html;
+        }
+        
+        // Buscar al presionar Enter
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') searchGifs();
+        });
+    </script>
+</body>
+</html>
