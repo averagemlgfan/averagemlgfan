@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Lector de Reddit de averagemlgfan</title>
+    <style>
+        img { max-width: 100%; height: auto; }
+        .post { margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+        .post-meta { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>Lector Reddit Completo</h1>
+    
+    <form id="search-form">
+        <input type="text" id="query" placeholder="Usuario o Subreddit">
+        <select id="type">
+            <option value="user">Posts de Usuario</option>
+            <option value="subreddit">Posts de Subreddit</option>
+        </select>
+        <select id="sort">
+            <option value="new">Nuevos</option>
+            <option value="hot">Populares</option>
+        </select>
+        <button type="submit">Buscar</button>
+    </form>
+    
+    <div id="loading" style="display:none">Cargando...</div>
+    <div id="posts"></div>
+    
+    <script>
+        document.getElementById('search-form').onsubmit = function(e) {
+            e.preventDefault();
+            loadContent();
+        };
+        
+        function loadContent() {
+            var query = document.getElementById('query').value.trim();
+            var type = document.getElementById('type').value;
+            var sort = document.getElementById('sort').value;
+            
+            if (!query) {
+                alert("Ingresa un usuario o subreddit");
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('posts').innerHTML = '';
+            
+            var proxyUrl = 'https://corsproxy.io/?';
+            var redditUrl;
+            
+            if (type === 'user') {
+                redditUrl = 'https://www.reddit.com/user/' + query + '/submitted/' + sort + '.json?limit=15';
+            } else {
+                redditUrl = 'https://www.reddit.com/r/' + query + '/' + sort + '.json?limit=15';
+            }
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', proxyUrl + encodeURIComponent(redditUrl), true);
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    document.getElementById('loading').style.display = 'none';
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText.replace(/^[^{]*/, ''));
+                            if (data.data && data.data.children) {
+                                showFullContent(data.data.children);
+                            } else {
+                                document.getElementById('posts').innerHTML = 'No se encontraron posts';
+                            }
+                        } catch(e) {
+                            document.getElementById('posts').innerHTML = 'Error procesando los datos';
+                        }
+                    } else {
+                        document.getElementById('posts').innerHTML = 'Error de conexión';
+                    }
+                }
+            };
+            
+            xhr.send();
+        }
+        
+        function showFullContent(posts) {
+            var container = document.getElementById('posts');
+            
+            posts.forEach(function(post) {
+                var p = post.data;
+                var postDiv = document.createElement('div');
+                postDiv.className = 'post';
+                
+                // Cabecera del post
+                var header = '<h2><a href="https://reddit.com' + p.permalink + '" target="_blank">' + 
+                            (p.title || 'Sin título') + '</a></h2>';
+                header += '<div class="post-meta">Publicado por ' + p.author + ' en ' + 
+                         p.subreddit_name_prefixed + ' | ' + p.score + ' puntos</div>';
+                
+                // Contenido del post
+                var content = '';
+                
+                // Texto completo
+                if (p.selftext) {
+                    content += '<div class="post-text">' + p.selftext + '</div>';
+                }
+                
+                // Imágenes
+                if (p.url) {
+                    // Imagen directa
+                    if (/\.(jpg|jpeg|png|gif)$/i.test(p.url)) {
+                        content += '<div class="post-image"><img src="' + p.url + '" alt="Imagen del post"></div>';
+                    } 
+                    // Enlace a Imgur
+                    else if (p.url.includes('imgur.com')) {
+                        var imgurId = p.url.split('/').pop().split('.')[0];
+                        content += '<div class="post-image"><img src="https://i.imgur.com/' + imgurId + '.jpg" alt="Imagen de Imgur"></div>';
+                    }
+                    // Enlace a Reddit
+                    else if (p.url.includes('redd.it')) {
+                        content += '<div class="post-image"><img src="' + p.url + '" alt="Imagen de Reddit"></div>';
+                    }
+                    // Enlace genérico
+                    else {
+                        content += '<div class="post-link"><a href="' + p.url + '" target="_blank">Ver contenido externo</a></div>';
+                    }
+                }
+                
+                // Galerías de imágenes (posts múltiples)
+                if (p.gallery_data) {
+                    p.gallery_data.items.forEach(function(item) {
+                        var mediaId = item.media_id;
+                        if (p.media_metadata && p.media_metadata[mediaId]) {
+                            var imgUrl = p.media_metadata[mediaId].s.u || 
+                                        p.media_metadata[mediaId].s.gif || 
+                                        p.media_metadata[mediaId].s.mp4;
+                            content += '<div class="post-image"><img src="' + imgUrl.replace(/&amp;/g, '&') + '" alt="Imagen de galería"></div>';
+                        }
+                    });
+                }
+                
+                postDiv.innerHTML = header + content;
+                container.appendChild(postDiv);
+            });
+        }
+    </script>
+</body>
+</html>
